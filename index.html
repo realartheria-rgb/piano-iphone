@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Piano iPhone</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0b0b14;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro",system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#app{height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+header{padding:6px 0 2px;text-align:center}
+header h1{font-size:13px;font-weight:700;letter-spacing:1.6;opacity:.8}
+#stage{flex:1;display:flex;align-items:stretch;position:relative}
+.octave{display:flex;position:relative;width:100%;max-width:980px;margin:0 auto}
+.key{position:relative;cursor:pointer;border-radius:0 0 10px 10px;will-change:transform,background}
+.white{flex:1;background:linear-gradient(#f6f6f8,#d4d4d8);box-shadow:0 2px 0 #888,inset 0 -4px 5px rgba(0,0,0,.28)}
+.black{position:absolute;top:0;width:9%;height:55%;background:linear-gradient(#2a2a2a,#111);box-shadow:0 3px 5px rgba(0,0,0,.65),inset 0 -2px 3px rgba(255,255,255,.18);z-index:2;transform:translateX(-50%);border-radius:0 0 6px 6px}
+.key.active{transform:translateY(1px)}
+.white.active{background:linear-gradient(#e3ffce,#aef080)}
+.black.active{background:linear-gradient(#1f1f1f,#000)}
+.controls{padding:6px 14px calc(env(safe-area-inset-bottom) + 6px);display:flex;gap:10px;justify-content:center;align-items:center}
+.btn{appearance:none;border:none;background:rgba(255,255,255,.1);color:#fff;font-weight:700;font-size:13px;letter-spacing:.8;padding:10px 14px;border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.btn:active{background:rgba(255,255,255,.24);transform:scale(.97)}
+.info{text-align:center;font-size:11px;opacity:.5;padding:0 0 2px;letter-spacing:.6}
+#hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .6s}
+#hint.show{opacity:1}
+#hint span{font-size:13px;opacity:.9;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:10px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#fx{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 40%, rgba(255,255,255,.08), transparent 60%)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="fx"></div>
+  <header><h1>PIANO</h1></header>
+  <div id="stage"><div class="octave" id="piano"></div><div id="hint"><span>Нажмите клавиши</span></div></div>
+  <div class="controls">
+    <button class="btn" id="fullBtn">Fullscreen</button>
+    <button class="btn" id="octBtn">Октава ⇧</button>
+  </div>
+  <div class="info">1 октава · multi touch · WebAudio · iPhone 15</div>
+</div>
+<script>
+(() => {
+  const NOTES_W = ['C','D','E','F','G','A','B'];
+  const NOTES_B = ['C#','D#',null,'F#','G#','A#',null];
+  let octave = 4;
+  const stage = document.getElementById('piano');
+  const hint = document.getElementById('hint');
+  let nodes = [];
+  let phase = new Set();
+
+  function buildOctave(o) {
+    stage.innerHTML = '';
+    nodes = [];
+    const wrap = document.createElement('div');
+    wrap.className = 'octave';
+    stage.appendChild(wrap);
+    let w = 0;
+    NOTES_W.forEach((n, i) => {
+      const el = document.createElement('div');
+      el.className = 'key white';
+      el.dataset.note = n + o;
+      wrap.appendChild(el);
+      nodes.push({ note: n+o, el });
+      const b = NOTES_B[i];
+      if (b) {
+        const bk = document.createElement('div');
+        bk.className = 'key black';
+        bk.dataset.note = b + o;
+        bk.style.left = ((w+1)/7*100) + '%';
+        wrap.appendChild(bk);
+        nodes.push({ note: b+o, el: bk });
+      }
+      w++;
+    });
+  }
+  function refreshTitle() { document.querySelector('header h1').textContent = 'PIANO · ' + octave + ' октава'; }
+  function changeOctave(d) {
+    octave = Math.min(Math.max(octave + d, 2), 6);
+    buildOctave(octave); refreshTitle();
+  }
+
+  let ctx = null;
+  function ensure() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function freq(note) {
+    const m = note.match(/^([A-G]#?)(\d)$/); if (!m) return 440;
+    const idx = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].indexOf(m[1]);
+    const midi = (parseInt(m[2], 10) + 1) * 12 + idx;
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function play(note, t) {
+    ensure();
+    const t0 = t || ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(freq(note), t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.6, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.18);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.9);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0); o.stop(t0 + 2.0);
+  }
+  function activate(n) {
+    const f = nodes.find(p => p.note === n);
+    if (!f) return;
+    f.el.classList.add('active');
+    if (!phase.has(n)) { phase.add(n); play(n); hideHint(); }
+  }
+  function deactivate(n) {
+    const f = nodes.find(p => p.note === n);
+    if (f) f.el.classList.remove('active');
+    phase.delete(n);
+  }
+  function hideHint() { hint.classList.remove('show'); }
+
+  stage.addEventListener('touchstart', e => { e.preventDefault(); [...e.changedTouches].forEach(t => { const el = document.elementFromPoint(t.clientX, t.clientY); if (el && el.dataset.note) activate(el.dataset.note); }); }, { passive:false });
+  stage.addEventListener('touchmove', e => { e.preventDefault(); [...e.changedTouches].forEach(t => { const el = document.elementFromPoint(t.clientX, t.clientY); if (el && el.dataset.note) activate(el.dataset.note); }); }, { passive:false });
+  stage.addEventListener('touchend', e => {
+    e.preventDefault();
+    phase.forEach(n => {
+      if (![...e.touches].some(t => { const el = document.elementFromPoint(t.clientX, t.clientY); return el && el.dataset.note === n; })) deactivate(n);
+    });
+  }, { passive:false });
+  stage.addEventListener('touchcancel', () => phase.forEach(n => deactivate(n)));
+
+  let mouse = null;
+  stage.addEventListener('mousedown', e => { const el = e.target.closest('.key'); if (el && el.dataset.note) { mouse = el.dataset.note; activate(mouse); } });
+  window.addEventListener('mousemove', e => { if (!mouse) return; const el = document.elementFromPoint(e.clientX, e.clientY); if (!el || !el.dataset.note || el.dataset.note !== mouse) { deactivate(mouse); mouse = null; return; } });
+  window.addEventListener('mouseup', () => { if (mouse) { deactivate(mouse); mouse = null; } });
+
+  const km = { KeyC:'C', KeyD:'D', KeyE:'E', KeyF:'F', KeyG:'G', KeyA:'A', KeyB:'B', KeyW:'C#', KeyE2:'D#', KeyT:'F#', KeyY:'G#', KeyU:'A#' };
+  window.addEventListener('keydown', e => { if (e.repeat) return; const n = km[e.code]; if (n) activate(n+octave); });
+  window.addEventListener('keyup', e => { const n = km[e.code]; if (n) deactivate(n+octave); });
+
+  document.getElementById('fullBtn').addEventListener('click', async () => { try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.(); else await document.exitFullscreen?.(); } catch {} });
+  document.getElementById('octBtn').addEventListener('click', () => { changeOctave(octave < 6 ? 1 : -3); });
+  buildOctave(octave); refreshTitle();
+  setTimeout(() => hint.classList.add('show'), 200);
+})();
+</script>
+</body>
+</html>
