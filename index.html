@@ -10,221 +10,150 @@
   <meta http-equiv="Expires" content="0">
   <title>🎹 Piano Pro</title>
   <style>
-    :root {
-      --splash-bg: #06060c;
-      --accent: #fbbf24;
-      --accent-2: #f6f6f8;
-    }
+    :root { --ink: #f6f6f8; --accent: #fbbf24; --bg: #050509; }
 
-    /* ───────────────── SPLASH ───────────────── */
     #splash {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: radial-gradient(circle at 50% 34%, #18182b, var(--splash-bg) 72%);
+      background: var(--bg);
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity .55s ease, transform .55s cubic-bezier(.2,.8,.2,1);
+      transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.2,1);
     }
-    #splash.hide {
-      opacity: 0;
-      transform: scale(1.12);
-      pointer-events: none;
-    }
+    #splash.hide { opacity: 0; transform: scale(1.14); pointer-events: none; }
 
-    /* kinetic canvas */
-    #splashCanvas {
+    .btn-scramble {
       position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      opacity: .9;
+      left: 8px;
+      top: max(14px, env(safe-area-inset-top, 14px));
+      z-index: 10;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      font: 600 12px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
     }
 
-    .kinetic {
+    .stage {
       position: relative;
-      width: min(96vw, 1100px);
-      height: min(62vh, 600px);
-      perspective: 1400px;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1200px;
+    }
+
+    .word-wrap {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) rotateX(18deg) rotateY(0deg);
       transform-style: preserve-3d;
-      z-index: 2;
-      pointer-events: none;
+      will-change: transform;
     }
 
     .word {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      text-align: center;
-      line-height: .9;
       white-space: nowrap;
-      transform: translate(-50%, -50%);
-      will-change: transform, opacity, filter, letter-spacing;
-      pointer-events: none;
-    }
-
-    .phrase-top {
-      font-size: clamp(26px, 7vw, 84px);
-      font-weight: 900;
-      letter-spacing: .2px;
-      color: #f6f6f8;
-      animation: phraseTop 7.2s cubic-bezier(.2,.8,.2,1) forwards;
-    }
-    .phrase-main {
-      font-size: clamp(30px, 8.6vw, 100px);
+      line-height: .86;
+      text-align: center;
       font-weight: 900;
       letter-spacing: .4px;
-      color: #fbbf24;
-      animation: phraseMain 7.2s cubic-bezier(.2,.8,.2,1) .12s forwards;
-      mix-blend-mode: screen;
-    }
-    .phrase-sub {
-      font-size: clamp(20px, 5vw, 58px);
-      font-weight: 800;
-      letter-spacing: .6px;
-      color: #c7c7d4;
-      opacity: .9;
-      animation: phraseSub 7.2s ease-in-out .3s forwards;
-    }
-
-    .repeat-main {
-      font-size: clamp(24px, 6.4vw, 76px);
-      font-weight: 900;
-      letter-spacing: .5px;
-      color: #fbbf24;
-      opacity: .7;
-      animation: repeatMain 7.2s ease-in-out .95s forwards;
-      mix-blend-mode: screen;
-    }
-    .repeat-top {
-      font-size: clamp(22px, 6vw, 70px);
-      font-weight: 800;
-      letter-spacing: .4px;
-      color: #f6f6f8;
-      opacity: .75;
-      animation: repeatTop 7.2s ease-in-out 1.05s forwards;
-    }
-
-    /* Scatter layer */
-    .scatter {
+      color: var(--ink);
       position: absolute;
       left: 50%;
       top: 50%;
-      display: flex;
-      gap: clamp(5px, 1.1vw, 14px);
       transform: translate(-50%, -50%);
-      animation: scatterBurst 7.2s ease-in-out .12s forwards;
+      mix-blend-mode: screen;
     }
-    .char {
+
+    .w-a { font-size: clamp(22px, 5.4vw, 64px); opacity: .88; animation: driftA 4.8s cubic-bezier(.2,.8,.2,1) forwards; }
+    .w-b { font-size: clamp(28px, 7.6vw, 90px); color: var(--accent); animation: driftB 4.8s cubic-bezier(.2,.8,.2,1) .05s forwards; }
+    .w-c { font-size: clamp(20px, 4.8vw, 56px); opacity: .78; animation: driftC 4.8s ease-in-out .12s forwards; }
+    .w-d { font-size: clamp(18px, 4.2vw, 48px); opacity: .68; animation: driftD 4.8s ease-in-out .18s forwards; }
+
+    .ch {
       display: inline-block;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
-      font-weight: 900;
-      color: #f6f6f8;
-      animation: charSpin 7.2s ease-in-out both;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+      animation: chChaos 4.8s ease-in-out both;
       animation-delay: var(--d);
     }
-    .phrase-main .char { color: #fbbf24; }
-    .phrase-sub .char { color: #c7c7d4; }
+    .w-b .ch { color: var(--accent); }
+    .w-a .ch { color: var(--ink); }
+    .w-c .ch { color: #c7c7d4; }
 
-    @keyframes charSpin {
-      0%   { transform: rotate(-42deg) scale(0) translate(-100px, 70px); opacity: 0; filter: blur(18px); letter-spacing: 10px; }
-      13%  { transform: rotate(22deg) scale(1.5) translate(12px, -18px); opacity: 1; filter: blur(0); letter-spacing: -4px; }
-      28%  { transform: rotate(-18deg) scale(.8) translate(-10px, 8px); }
-      46%  { transform: rotate(14deg) scale(1.38) translate(8px, -10px); letter-spacing: 5px; }
-      64%  { transform: rotate(-8deg) scale(.88) translate(-4px, 4px); }
-      82%  { transform: rotate(4deg) scale(1.08) translate(2px, -2px); }
-      100% { transform: rotate(0deg) scale(1) translate(0, 0); opacity: 1; letter-spacing: .2px; }
+    @keyframes chChaos {
+      0%   { transform: translate3d(var(--sx), var(--sy), -120px) rotate(calc(var(--sr)*1deg)) scale(0); opacity: 0; filter: blur(14px); }
+      14%  { transform: translate3d(0,0,0) rotate(0deg) scale(1.18); opacity: 1; filter: blur(0); }
+      30%  { transform: translate3d(var(--dx), var(--dy), 40px) rotate(calc(var(--dr)*1deg)) scale(.88); }
+      50%  { transform: translate3d(0,0,0) rotate(0deg) scale(1.08); }
+      70%  { transform: translate3d(calc(var(--dx)*0.4), calc(var(--dy)*0.3), 20px) rotate(0deg) scale(.96); }
+      100% { transform: translate3d(0,0,0) rotate(0deg) scale(1); opacity: 1; }
     }
 
-    @keyframes phraseTop {
-      0%   { transform: translate(-50%, -50%) rotate(-22deg) scale(.12) translateY(120px); opacity: 0; filter: blur(18px); }
-      18%  { transform: translate(-50%, -50%) rotate(9deg) scale(1.2) translateY(-18px); opacity: 1; filter: blur(0); }
-      36%  { transform: translate(-50%, -50%) rotate(-7deg) scale(.86) translateY(8px); }
-      56%  { transform: translate(-50%, -50%) rotate(5deg) scale(1.18) translateY(-8px); }
-      76%  { transform: translate(-50%, -50%) rotate(-3deg) scale(.94) translateY(3px); }
-      88%  { transform: translate(-50%, -50%) rotate(1.5deg) scale(1.05) translateY(-2px); }
-      100% { transform: translate(-50%, -50%) rotate(0) scale(1) translateY(0); opacity: 1; }
+    @keyframes driftA {
+      0%   { transform: translate(-50%,-50%) rotate(-16deg) scale(.12) translateY(110px); opacity: 0; filter: blur(16px); }
+      18%  { transform: translate(-50%,-50%) rotate(6deg) scale(1.14) translateY(-14px); opacity: .9; filter: blur(0); }
+      38%  { transform: translate(-50%,-50%) rotate(-4deg) scale(.9) translateY(6px); }
+      60%  { transform: translate(-50%,-50%) rotate(3deg) scale(1.12) translateY(-5px); }
+      82%  { transform: translate(-50%,-50%) rotate(-1.5deg) scale(.96) translateY(2px); }
+      100% { transform: translate(-50%,-50%) rotate(0) scale(1) translateY(0); opacity: .88; }
+    }
+    @keyframes driftB {
+      0%   { transform: translate(-50%,-50%) rotate(18deg) scale(.06) translateY(-120px); opacity: 0; filter: blur(18px); letter-spacing: 10px; }
+      20%  { transform: translate(-50%,-50%) rotate(-9deg) scale(1.3) translateY(18px); opacity: 1; filter: blur(0); letter-spacing: -2px; }
+      40%  { transform: translate(-50%,-50%) rotate(5deg) scale(.84) translateY(-8px); }
+      62%  { transform: translate(-50%,-50%) rotate(-4deg) scale(1.22) translateY(5px); letter-spacing: 4px; }
+      84%  { transform: translate(-50%,-50%) rotate(2deg) scale(.92) translateY(-2px); }
+      100% { transform: translate(-50%,-50%) rotate(0) scale(1) translateY(0); opacity: 1; letter-spacing: .4px; }
+    }
+    @keyframes driftC {
+      0%   { transform: translate(-50%,-50%) rotate(-12deg) scale(.16) translateY(70px); opacity: 0; filter: blur(14px); }
+      26%  { transform: translate(-50%,-50%) rotate(6deg) scale(1.1) translateY(-10px); opacity: .78; filter: blur(0); }
+      48%  { transform: translate(-50%,-50%) rotate(-4deg) scale(.92) translateY(4px); }
+      70%  { transform: translate(-50%,-50%) rotate(3deg) scale(1.06) translateY(-3px); }
+      90%  { transform: translate(-50%,-50%) rotate(-1deg) scale(.96) translateY(1px); }
+      100% { transform: translate(-50%,-50%) rotate(0) scale(1) translateY(0); opacity: .78; }
+    }
+    @keyframes driftD {
+      0%   { transform: translate(-50%,-50%) rotate(-10deg) scale(.2) translateY(50px); opacity: 0; filter: blur(12px); }
+      30%  { transform: translate(-50%,-50%) rotate(5deg) scale(1.08) translateY(-8px); opacity: .7; filter: blur(0); }
+      54%  { transform: translate(-50%,-50%) rotate(-3deg) scale(.92) translateY(3px); }
+      76%  { transform: translate(-50%,-50%) rotate(2deg) scale(1.04) translateY(-2px); }
+      100% { transform: translate(-50%,-50%) rotate(0) scale(1) translateY(0); opacity: .7; }
     }
 
-    @keyframes phraseMain {
-      0%   { transform: translate(-50%, -50%) rotate(18deg) scale(.06) translateY(-130px); opacity: 0; filter: blur(18px); letter-spacing: 12px; }
-      20%  { transform: translate(-50%, -50%) rotate(-10deg) scale(1.32) translateY(22px); opacity: 1; filter: blur(0); letter-spacing: -3px; }
-      40%  { transform: translate(-50%, -50%) rotate(6deg) scale(.82) translateY(-10px); }
-      60%  { transform: translate(-50%, -50%) rotate(-5deg) scale(1.24) translateY(7px); letter-spacing: 6px; }
-      78%  { transform: translate(-50%, -50%) rotate(3deg) scale(.9) translateY(-3px); }
-      90%  { transform: translate(-50%, -50%) rotate(-1.5deg) scale(1.06) translateY(2px); }
-      100% { transform: translate(-50%, -50%) rotate(0) scale(1) translateY(0); opacity: 1; letter-spacing: .4px; }
-    }
-
-    @keyframes phraseSub {
-      0%   { transform: translate(-50%, -50%) rotate(-12deg) scale(.16) translateY(80px); opacity: 0; filter: blur(14px); }
-      26%  { transform: translate(-50%, -50%) rotate(6deg) scale(1.12) translateY(-12px); opacity: 1; filter: blur(0); }
-      48%  { transform: translate(-50%, -50%) rotate(-4deg) scale(.92) translateY(5px); }
-      70%  { transform: translate(-50%, -50%) rotate(3deg) scale(1.08) translateY(-4px); }
-      88%  { transform: translate(-50%, -50%) rotate(-1.5deg) scale(.96) translateY(2px); }
-      100% { transform: translate(-50%, -50%) rotate(0) scale(1) translateY(0); opacity: .9; }
-    }
-
-    @keyframes repeatTop {
-      0%   { transform: translate(-50%, -50%) rotate(-14deg) scale(.18) translateY(70px); opacity: 0; filter: blur(12px); }
-      22%  { transform: translate(-50%, -50%) rotate(7deg) scale(1.14) translateY(-12px); opacity: .75; filter: blur(0); }
-      44%  { transform: translate(-50%, -50%) rotate(-5deg) scale(.92) translateY(5px); }
-      66%  { transform: translate(-50%, -50%) rotate(3deg) scale(1.1) translateY(-5px); }
-      84%  { transform: translate(-50%, -50%) rotate(-1.5deg) scale(.96) translateY(2px); }
-      100% { transform: translate(-50%, -50%) rotate(0) scale(1) translateY(0); opacity: .75; }
-    }
-
-    @keyframes repeatMain {
-      0%   { transform: translate(-50%, -50%) rotate(14deg) scale(.1) translateY(-80px); opacity: 0; filter: blur(14px); letter-spacing: 10px; }
-      24%  { transform: translate(-50%, -50%) rotate(-8deg) scale(1.22) translateY(14px); opacity: .7; filter: blur(0); letter-spacing: -2px; }
-      46%  { transform: translate(-50%, -50%) rotate(5deg) scale(.88) translateY(-7px); }
-      68%  { transform: translate(-50%, -50%) rotate(-4deg) scale(1.18) translateY(5px); letter-spacing: 5px; }
-      86%  { transform: translate(-50%, -50%) rotate(2deg) scale(.94) translateY(-2px); }
-      100% { transform: translate(-50%, -50%) rotate(0) scale(1) translateY(0); opacity: .7; letter-spacing: .4px; }
-    }
-
-    @keyframes scatterBurst {
-      0%   { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
-      16%  { opacity: 1; transform: translate(-50%, -50%) scale(1.24); }
-      42%  { transform: translate(-50%, -50%) scale(.9); }
-      62%  { transform: translate(-50%, -50%) scale(1.1); }
-      82%  { transform: translate(-50%, -50%) scale(.96); }
-      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    }
-
-    /* fill bar */
-    .splash-fill {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(251,191,36,.2), rgba(251,191,36,0));
-      transform: scaleY(0);
-      transform-origin: bottom;
-      animation: fillUp 7.2s cubic-bezier(.2,.8,.2,1) forwards;
-      opacity: .25;
-      pointer-events: none;
-    }
-    @keyframes fillUp {
-      0%   { transform: scaleY(0); opacity: 0; }
-      28%  { transform: scaleY(.36); opacity: .3; }
-      58%  { transform: scaleY(.84); opacity: .16; }
-      82%  { transform: scaleY(.95); opacity: .08; }
-      100% { transform: scaleY(1); opacity: 0; }
-    }
-
-    /* glow pulse */
-    #splash::after {
+    #splash::before {
       content: '';
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(circle at 50% 36%, rgba(251,191,36,.14), transparent 58%),
-        radial-gradient(circle at 26% 66%, rgba(96,165,250,.12), transparent 58%),
-        radial-gradient(circle at 74% 60%, rgba(244,114,182,.1), transparent 52%);
-      animation: glowPulse 3s ease-in-out infinite;
+        radial-gradient(circle at 50% 32%, rgba(251,191,36,.12), transparent 60%),
+        radial-gradient(circle at 28% 62%, rgba(96,165,250,.1), transparent 58%),
+        radial-gradient(circle at 72% 58%, rgba(244,114,182,.09), transparent 52%);
+      animation: pulse 2.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .2; transform: scale(1); }
+      50% { opacity: .9; transform: scale(1.06); }
+    }
+
+    .grain {
+      position: absolute;
+      inset: 0;
+      opacity: .12;
+      background-image: radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px);
+      background-size: 4px 4px;
       pointer-events: none;
+    }
+  </style>
     }
     @keyframes glowPulse {
       0%, 100% { opacity: .25; transform: scale(1); }
@@ -545,47 +474,41 @@
 </head>
 <body>
   <div id="splash" aria-hidden="true">
-    <canvas id="splashCanvas" aria-hidden="true"></canvas>
-    <div class="kinetic" aria-hidden="true">
-      <div class="splash-fill"></div>
-
-      <div class="word phrase-top">
-        Make You Music With
+    <div class="grain" aria-hidden="true"></div>
+    <button class="btn-scramble" id="splashRepeat" aria-hidden="true">REPLAY</button>
+    <div class="stage" aria-hidden="true">
+      <div class="word-wrap">
+        <div class="word w-a">
+          Make You Music With
+        </div>
+        <div class="word w-b">
+          ARTHERIA SYNTH
+        </div>
+        <div class="word w-c">
+          PIANO PRO
+        </div>
+        <div class="word w-d">
+          ARTHERIA SYNTH
+        </div>
       </div>
 
-      <div class="word phrase-main">
-        ARTHERIA SYNTH
-      </div>
-
-      <div class="word phrase-sub">
-        PIANO PRO
-      </div>
-
-      <div class="word repeat-top">
-        Make You Music With
-      </div>
-
-      <div class="word repeat-main">
-        ARTHERIA SYNTH
-      </div>
-
-      <div class="scatter">
-        <span class="char" style="--d:.54s">M</span>
-        <span class="char" style="--d:.58s">a</span>
-        <span class="char" style="--d:.62s">k</span>
-        <span class="char" style="--d:.66s">e</span>
-        <span class="char" style="--d:.88s">Y</span>
-        <span class="char" style="--d:.92s">o</span>
-        <span class="char" style="--d:.96s">u</span>
-        <span class="char" style="--d:1.18s">M</span>
-        <span class="char" style="--d:1.22s">u</span>
-        <span class="char" style="--d:1.26s">s</span>
-        <span class="char" style="--d:1.30s">i</span>
-        <span class="char" style="--d:1.34s">c</span>
-        <span class="char" style="--d:1.56s">W</span>
-        <span class="char" style="--d:1.60s">i</span>
-        <span class="char" style="--d:1.64s">t</span>
-        <span class="char" style="--d:1.68s">h</span>
+      <div class="chars">
+        <span class="ch" style="--d:.48s;--sx:-120px;--sy:70px;--sr:-36;--dx:14px;--dy:-18px;--dr:14">M</span>
+        <span class="ch" style="--d:.52s;--sx:90px;--sy:-60px;--sr:28;--dx:-12px;--dy:10px;--dr:-12">a</span>
+        <span class="ch" style="--d:.56s;--sx:-80px;--sy:50px;--sr:-24;--dx:10px;--dy:-8px;--dr:10">k</span>
+        <span class="ch" style="--d:.60s;--sx:100px;--sy:-70px;--sr:32;--dx:-14px;--dy:12px;--dr:-14">e</span>
+        <span class="ch" style="--d:.72s;--sx:-110px;--sy:60px;--sr:-30;--dx:12px;--dy:-10px;--dr:12">Y</span>
+        <span class="ch" style="--d:.76s;--sx:70px;--sy:-50px;--sr:22;--dx:-10px;--dy:8px;--dr:-10">o</span>
+        <span class="ch" style="--d:.80s;--sx:-90px;--sy:55px;--sr:-26;--dx:11px;--dy:-9px;--dr:11">u</span>
+        <span class="ch" style="--d:1.02s;--sx:120px;--sy:-80px;--sr:34;--dx:-13px;--dy:11px;--dr:-13">M</span>
+        <span class="ch" style="--d:1.06s;--sx:-70px;--sy:45px;--sr:-20;--dx:9px;--dy:-7px;--dr:9">u</span>
+        <span class="ch" style="--d:1.10s;--sx:85px;--sy:-55px;--sr:24;--dx:-11px;--dy:9px;--dr:-11">s</span>
+        <span class="ch" style="--d:1.14s;--sx:-95px;--sy:58px;--sr:-28;--dx:12px;--dy:-10px;--dr:12">i</span>
+        <span class="ch" style="--d:1.18s;--sx:75px;--sy:-48px;--sr:18;--dx:-9px;--dy:7px;--dr:-9">c</span>
+        <span class="ch" style="--d:1.32s;--sx:-130px;--sy:85px;--sr:36;--dx:15px;--dy:-13px;--dr:15">W</span>
+        <span class="ch" style="--d:1.36s;--sx:60px;--sy:-42px;--sr:16;--dx:-8px;--dy:6px;--dr:-8">i</span>
+        <span class="ch" style="--d:1.40s;--sx:-100px;--sy:65px;--sr:-26;--dx:11px;--dy:-9px;--dr:11">t</span>
+        <span class="ch" style="--d:1.44s;--sx:80px;--sy:-52px;--sr:20;--dx:-10px;--dy:8px;--dr:-10">h</span>
       </div>
     </div>
   </div>
@@ -1007,76 +930,24 @@
 
       setTimeout(resizePiano, 100);
 
-      // Canvas background for splash
-      (function initSplashCanvas() {
-        const canvas = document.getElementById('splashCanvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        let w, h, particles = [], raf;
-
-        function resize() {
-          w = canvas.width = window.innerWidth;
-          h = canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
-
-        const PARTICLE_COUNT = 90;
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-          particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            vx: (Math.random() - 0.5) * 0.6,
-            vy: (Math.random() - 0.5) * 0.6,
-            radius: Math.random() * 1.6 + 0.4,
-            hue: Math.random() < 0.5 ? 45 : 220, // gold / blue
-          });
-        }
-
-        function draw() {
-          ctx.clearRect(0, 0, w, h);
-          ctx.fillStyle = 'rgba(255,255,255,0.08)';
-          for (const p of particles) {
-            p.x += p.vx;
-            p.y += p.vy;
-            if (p.x < 0) p.x = w;
-            if (p.x > w) p.x = 0;
-            if (p.y < 0) p.y = h;
-            if (p.y > h) p.y = 0;
-
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // connections
-          ctx.strokeStyle = 'rgba(251,191,36,0.06)';
-          ctx.lineWidth = 0.6;
-          for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-              const dx = particles[i].x - particles[j].x;
-              const dy = particles[i].y - particles[j].y;
-              const dist = dx * dx + dy * dy;
-              if (dist < 18000) {
-                ctx.beginPath();
-                ctx.moveTo(particles[i].x, particles[i].y);
-                ctx.lineTo(particles[j].x, particles[j].y);
-                ctx.stroke();
-              }
-            }
-          }
-          raf = requestAnimationFrame(draw);
-        }
-        draw();
-
-        // stop after splash hides
+      // Splash replay
+      document.getElementById('splashRepeat').addEventListener('click', () => {
+        const splash = document.getElementById('splash');
+        if (!splash) return;
+        splash.classList.remove('hide');
+        // restart animations by reinserting splash
+        const parent = splash.parentNode;
+        const clone = splash.cloneNode(true);
+        parent.replaceChild(clone, splash);
         setTimeout(() => {
-          cancelAnimationFrame(raf);
-          ctx.clearRect(0, 0, w, h);
-        }, 6800);
-      })();
+          const s = document.getElementById('splash');
+          if (!s) return;
+          s.classList.add('hide');
+          s.addEventListener('transitionend', () => s.remove());
+        }, 7400);
+      });
 
-      // Splash auto-hide after kinetic sequence
+      // Auto-hide splash
       setTimeout(() => {
         const splash = document.getElementById('splash');
         if (!splash) return;
