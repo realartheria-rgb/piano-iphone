@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>🎹 Virtual Piano</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      padding-top: max(20px, env(safe-area-inset-top, 20px));
+      padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+      color: #fff;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .instrument-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 18px;
+      max-width: 520px;
+    }
+
+    .instrument-btn {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      touch-action: manipulation;
+    }
+
+    .instrument-btn:active {
+      transform: translateY(1px);
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .instrument-btn.active {
+      background: #fbbf24;
+      border-color: #fbbf24;
+      color: #1a1a2e;
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
+    }
+
+    .piano-container {
+      position: relative;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 16px;
+      padding: 24px 14px 16px;
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.5);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+      /* Fix iOS flex shrink */
+      min-width: 0;
+    }
+
+    .piano {
+      display: flex;
+      position: relative;
+      height: 210px;
+      /* Prevent shrinking on iOS */
+      flex-shrink: 0;
+      min-width: fit-content;
+    }
+
+    .key {
+      position: relative;
+      cursor: pointer;
+      transition: all 0.08s ease;
+      border-radius: 0 0 6px 6px;
+    }
+
+    .white-key {
+      width: 40px;
+      height: 210px;
+      background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-top: none;
+      z-index: 1;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+      /* Prevent flex shrink */
+      flex-shrink: 0;
+    }
+
+    .white-key:active, .white-key.active {
+      background: linear-gradient(180deg, #d0d0d0 0%, #c0c0c0 100%);
+      transform: translateY(2px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 -1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .black-key {
+      width: 26px;
+      height: 132px;
+      background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      border-top: none;
+      z-index: 2;
+      margin-left: -13px;
+      margin-right: -13px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6), inset 0 -1px 2px rgba(255, 255, 255, 0.1);
+      /* Prevent flex shrink */
+      flex-shrink: 0;
+    }
+
+    .black-key:active, .black-key.active {
+      background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+      transform: translateY(2px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6), inset 0 -1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .key-label {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      transition: color 0.08s ease;
+    }
+
+    .white-key .key-label {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    .white-key:active .key-label, .white-key.active .key-label {
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    .black-key .key-label {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .black-key:active .key-label, .black-key.active .key-label {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 12px 22px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      min-width: 110px;
+      touch-action: manipulation;
+    }
+
+    .sustain-btn {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .sustain-btn.active {
+      background: #4ade80;
+      border-color: #4ade80;
+      color: #000;
+      box-shadow: 0 0 18px rgba(74, 222, 128, 0.4);
+    }
+
+    .reset-btn {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border: 2px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .reset-btn:active {
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    .info {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      max-width: 420px;
+      line-height: 1.5;
+    }
+
+    .visualizer {
+      margin-top: 16px;
+      height: 52px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .viz-bar {
+      width: 3px;
+      background: #4ade80;
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+
+    @media (max-width: 600px) {
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .white-key {
+        width: 36px;
+        height: 190px;
+      }
+
+      .black-key {
+        width: 22px;
+        height: 120px;
+        margin-left: -11px;
+        margin-right: -11px;
+      }
+
+      .piano {
+        height: 190px;
+      }
+
+      .key-label {
+        font-size: 9px;
+        bottom: 8px;
+      }
+
+      .instrument-btn {
+        padding: 7px 11px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎹 Virtual Piano</h1>
+    <p>2 октавы · C4 — B5</p>
+  </div>
+
+  <div class="instrument-panel" id="instrumentPanel"></div>
+
+  <div class="piano-container">
+    <div class="piano" id="piano"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn sustain-btn" id="sustainBtn">🎯 Sustain: OFF</button>
+    <button class="btn reset-btn" id="resetBtn">⏹ All Notes Off</button>
+  </div>
+
+  <div class="visualizer" id="visualizer">
+    <div class="viz-bar" style="height: 18px;"></div>
+    <div class="viz-bar" style="height: 32px;"></div>
+    <div class="viz-bar" style="height: 22px;"></div>
+    <div class="viz-bar" style="height: 38px;"></div>
+    <div class="viz-bar" style="height: 26px;"></div>
+    <div class="viz-bar" style="height: 42px;"></div>
+    <div class="viz-bar" style="height: 30px;"></div>
+    <div class="viz-bar" style="height: 20px;"></div>
+    <div class="viz-bar" style="height: 34px;"></div>
+    <div class="viz-bar" style="height: 24px;"></div>
+  </div>
+
+  <div class="info">
+    Нажмите клавиши мышью или пальцем.<br>
+    Включите Sustain для длинного звучания.<br>
+    Поддержка свайпа по клавишам.
+  </div>
+
+  <script>
+    const AudioEngine = (() => {
+      let audioCtx = null;
+      let compressor = null;
+      let reverb = null;
+      let reverbGain = null;
+      let reverbFeedback = null;
+      let activeNotes = new Map();
+      let sustainActive = false;
+      const SUSTAIN_RELEASE = 2.5;
+      const NORMAL_RELEASE = 0.5;
+
+      const presets = {
+        piano: {
+          name: 'Piano',
+          icon: '🎹',
+          type: 'sawtooth',
+          filterType: 'lowpass',
+          filterFreqMin: 1400,
+          filterFreqMax: 3200,
+          filterQ: 1,
+          attack: 0.01,
+          decay: 0.12,
+          sustainLevel: 0.25,
+          release: 0.55,
+          reverbDecay: 0.12,
+          reverbMix: 0.18,
+          feedback: 0.25
+        },
+        epiano: {
+          name: 'E-Piano',
+          icon: '🎹',
+          type: 'triangle',
+          filterFreqMin: 900,
+          filterFreqMax: 2200,
+          filterQ: 0.8,
+          attack: 0.005,
+          decay: 0.18,
+          sustainLevel: 0.18,
+          release: 0.75,
+          reverbDecay: 0.14,
+          reverbMix: 0.22,
+          feedback: 0.3
+        },
+        organ: {
+          name: 'Organ',
+          icon: '🎵',
+          type: 'square',
+          filterFreqMin: 700,
+          filterFreqMax: 1600,
+          filterQ: 0.6,
+          attack: 0.01,
+          decay: 0.06,
+          sustainLevel: 0.55,
+          release: 0.14,
+          reverbDecay: 0.1,
+          reverbMix: 0.15,
+          feedback: 0.2
+        },
+        pad: {
+          name: 'Synth Pad',
+          icon: '🌙',
+          type: 'sawtooth',
+          filterFreqMin: 500,
+          filterFreqMax: 1400,
+          filterQ: 1.2,
+          attack: 0.18,
+          decay: 0.25,
+          sustainLevel: 0.45,
+          release: 1.6,
+          reverbDecay: 0.22,
+          reverbMix: 0.32,
+          feedback: 0.38
+        },
+        bell: {
+          name: 'Bell',
+          icon: '🔔',
+          type: 'sine',
+          filterFreqMin: 600,
+          filterFreqMax: 1800,
+          filterQ: 2,
+          attack: 0.001,
+          decay: 0.12,
+          sustainLevel: 0.0,
+          release: 0.28,
+          reverbDecay: 0.08,
+          reverbMix: 0.28,
+          feedback: 0.18
+        },
+        bright: {
+          name: 'Bright',
+          icon: '✨',
+          type: 'sawtooth',
+          filterFreqMin: 2200,
+          filterFreqMax: 5200,
+          filterQ: 0.7,
+          attack: 0.008,
+          decay: 0.08,
+          sustainLevel: 0.3,
+          release: 0.45,
+          reverbDecay: 0.1,
+          reverbMix: 0.12,
+          feedback: 0.22
+        }
+      };
+
+      let currentPreset = 'piano';
+
+      function applyReverbParams(preset) {
+        if (!reverb || !reverbGain || !reverbFeedback) return;
+        reverb.delayTime.setTargetAtTime(preset.reverbDecay, audioCtx.currentTime, 0.05);
+        reverbGain.gain.setTargetAtTime(preset.reverbMix, audioCtx.currentTime, 0.05);
+        reverbFeedback.gain.setTargetAtTime(preset.feedback, audioCtx.currentTime, 0.05);
+      }
+
+      function init() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.value = -22;
+        compressor.knee.value = 28;
+        compressor.ratio.value = 11;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.22;
+        compressor.connect(audioCtx.destination);
+
+        reverb = audioCtx.createDelay();
+        reverb.delayTime.value = 0.12;
+        reverbGain = audioCtx.createGain();
+        reverbGain.gain.value = 0.18;
+        reverbFeedback = audioCtx.createGain();
+        reverbFeedback.gain.value = 0.25;
+
+        const reverbFilter = audioCtx.createBiquadFilter();
+        reverbFilter.type = 'lowpass';
+        reverbFilter.frequency.value = 3200;
+
+        reverb.connect(reverbFilter);
+        reverbFilter.connect(reverbGain);
+        reverbGain.connect(compressor);
+
+        reverb.connect(reverbFeedback);
+        reverbFeedback.connect(reverb);
+
+        applyReverbParams(presets[currentPreset]);
+      }
+
+      function noteFrequency(note) {
+        const a4 = 440;
+        const semitones = {
+          'C4': -9, 'C#4': -8, 'D4': -7, 'D#4': -6, 'E4': -5, 'F4': -4,
+          'F#4': -3, 'G4': -2, 'G#4': -1, 'A4': 0, 'A#4': 1, 'B4': 2,
+          'C5': 3, 'C#5': 4, 'D5': 5, 'D#5': 6, 'E5': 7, 'F5': 8,
+          'F#5': 9, 'G5': 10, 'G#5': 11, 'A5': 12, 'A#5': 13, 'B5': 14
+        };
+        return a4 * Math.pow(2, (semitones[note] || 0) / 12);
+      }
+
+      function playNote(note, velocity = 0.7) {
+        init();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        if (activeNotes.has(note)) stopNote(note, true);
+
+        const preset = presets[currentPreset];
+        const freq = noteFrequency(note);
+        const now = audioCtx.currentTime;
+
+        const osc = audioCtx.createOscillator();
+        osc.type = preset.type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = preset.filterType;
+        const freqMin = preset.filterFreqMin;
+        const freqMax = preset.filterFreqMax;
+        const targetFreq = freqMin + (freqMax - freqMin) * velocity;
+        filter.frequency.setValueAtTime(targetFreq, now);
+        filter.Q.setValueAtTime(preset.filterQ, now);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(velocity, now + preset.attack);
+        gain.gain.exponentialRampToValueAtTime(
+          Math.max(0.0001, velocity * preset.sustainLevel),
+          now + preset.attack + preset.decay
+        );
+        gain.gain.setValueAtTime(
+          Math.max(0.0001, velocity * preset.sustainLevel),
+          now + preset.attack + preset.decay
+        );
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(compressor);
+        gain.connect(reverb);
+
+        osc.start(now);
+
+        activeNotes.set(note, { osc, gain, filter, startTime: now });
+        updateVisualizer(note, velocity, preset);
+      }
+
+      function stopNote(note, immediate = false) {
+        const data = activeNotes.get(note);
+        if (!data) return;
+
+        const { osc, gain } = data;
+        const now = audioCtx.currentTime;
+        const preset = presets[currentPreset];
+        const releaseTime = immediate ? 0.04 : (sustainActive ? SUSTAIN_RELEASE : preset.release);
+
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+
+        osc.stop(now + releaseTime + 0.05);
+        activeNotes.delete(note);
+      }
+
+      function setPreset(name) {
+        if (!presets[name]) return;
+        currentPreset = name;
+        if (audioCtx) applyReverbParams(presets[name]);
+      }
+
+      function setSustain(active) {
+        sustainActive = active;
+      }
+
+      function allNotesOff() {
+        activeNotes.forEach((_, note) => stopNote(note, true));
+      }
+
+      function updateVisualizer(note, velocity, preset) {
+        const bars = document.querySelectorAll('.viz-bar');
+        const hue = preset.type === 'sine' ? 180 : preset.type === 'triangle' ? 140 : preset.type === 'square' ? 60 : 100;
+        bars.forEach((bar, i) => {
+          const height = 12 + Math.random() * 45 * velocity;
+          bar.style.height = `${height}px`;
+          bar.style.background = `hsl(${hue + i * 10}, 65%, ${48 + velocity * 18}%)`;
+        });
+      }
+
+      return {
+        playNote,
+        stopNote,
+        setSustain,
+        setPreset,
+        allNotesOff,
+        getPreset: () => presets[currentPreset],
+        get sustainActive() { return sustainActive; },
+        presets
+      };
+    })();
+
+    const notes = [
+      { note: 'C4', type: 'white', label: 'C' }, { note: 'C#4', type: 'black', label: 'C#' },
+      { note: 'D4', type: 'white', label: 'D' }, { note: 'D#4', type: 'black', label: 'D#' },
+      { note: 'E4', type: 'white', label: 'E' }, { note: 'F4', type: 'white', label: 'F' },
+      { note: 'F#4', type: 'black', label: 'F#' }, { note: 'G4', type: 'white', label: 'G' },
+      { note: 'G#4', type: 'black', label: 'G#' }, { note: 'A4', type: 'white', label: 'A' },
+      { note: 'A#4', type: 'black', label: 'A#' }, { note: 'B4', type: 'white', label: 'B' },
+      { note: 'C5', type: 'white', label: 'C' }, { note: 'C#5', type: 'black', label: 'C#' },
+      { note: 'D5', type: 'white', label: 'D' }, { note: 'D#5', type: 'black', label: 'D#' },
+      { note: 'E5', type: 'white', label: 'E' }, { note: 'F5', type: 'white', label: 'F' },
+      { note: 'F#5', type: 'black', label: 'F#' }, { note: 'G5', type: 'white', label: 'G' },
+      { note: 'G#5', type: 'black', label: 'G#' }, { note: 'A5', type: 'white', label: 'A' },
+      { note: 'A#5', type: 'black', label: 'A#' }, { note: 'B5', type: 'white', label: 'B' }
+    ];
+
+    const pianoEl = document.getElementById('piano');
+    const keys = [];
+
+    notes.forEach((n) => {
+      const key = document.createElement('div');
+      key.className = `key ${n.type}-key`;
+      key.dataset.note = n.note;
+
+      const label = document.createElement('span');
+      label.className = 'key-label';
+      label.textContent = n.label;
+      key.appendChild(label);
+
+      pianoEl.appendChild(key);
+      keys.push({ el: key, note: n.note, type: n.type });
+    });
+
+    // Instruments UI
+    const instrumentPanel = document.getElementById('instrumentPanel');
+    const presetKeys = Object.keys(AudioEngine.presets);
+
+    presetKeys.forEach((key) => {
+      const preset = AudioEngine.presets[key];
+      const btn = document.createElement('button');
+      btn.className = 'instrument-btn';
+      btn.textContent = preset.icon + ' ' + preset.name;
+      btn.dataset.preset = key;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.instrument-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        AudioEngine.setPreset(key);
+      });
+      instrumentPanel.appendChild(btn);
+    });
+
+    // Дефолт
+    instrumentPanel.children[0].classList.add('active');
+
+    // Touch Swipe
+    let activeTouchNote = null;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    const SWIPE_THRESHOLD = 14;
+
+    function getKeyFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      return el && el.closest('.key') ? el.dataset.note : null;
+    }
+
+    function activateKey(note) {
+      if (!note) return;
+      const keyData = keys.find((k) => k.note === note);
+      if (!keyData) return;
+
+      if (activeTouchNote !== note) {
+        if (activeTouchNote) {
+          AudioEngine.stopNote(activeTouchNote);
+          const prev = keys.find((k) => k.note === activeTouchNote);
+          if (prev) prev.el.classList.remove('active');
+        }
+        keyData.el.classList.add('active');
+        AudioEngine.playNote(note, 0.7);
+        activeTouchNote = note;
+      }
+    }
+
+    function deactivateCurrentTouch() {
+      if (activeTouchNote) {
+        AudioEngine.stopNote(activeTouchNote);
+        const keyData = keys.find((k) => k.note === activeTouchNote);
+        if (keyData) keyData.el.classList.remove('active');
+        activeTouchNote = null;
+      }
+    }
+
+    // Mouse
+    keys.forEach(({ el, note }) => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        el.classList.add('active');
+        AudioEngine.playNote(note, 0.7);
+      });
+      el.addEventListener('mouseup', () => {
+        el.classList.remove('active');
+        AudioEngine.stopNote(note);
+      });
+      el.addEventListener('mouseleave', () => {
+        if (el.classList.contains('active')) {
+          el.classList.remove('active');
+          AudioEngine.stopNote(note);
+        }
+      });
+    });
+
+    // Touch
+    document.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.key')) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const note = getKeyFromPoint(touch.clientX, touch.clientY);
+        if (note) {
+          activateKey(note);
+          lastTouchX = touch.clientX;
+          lastTouchY = touch.clientY;
+        }
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (activeTouchNote) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - lastTouchX);
+        const dy = Math.abs(touch.clientY - lastTouchY);
+
+        if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) {
+          const newNote = getKeyFromPoint(touch.clientX, touch.clientY);
+          if (newNote && newNote !== activeTouchNote) activateKey(newNote);
+          lastTouchX = touch.clientX;
+          lastTouchY = touch.clientY;
+        }
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+      if (activeTouchNote) {
+        e.preventDefault();
+        deactivateCurrentTouch();
+      }
+    });
+
+    document.addEventListener('touchcancel', () => deactivateCurrentTouch());
+
+    // Buttons
+    const sustainBtn = document.getElementById('sustainBtn');
+    sustainBtn.addEventListener('click', () => {
+      const next = !AudioEngine.sustainActive;
+      AudioEngine.setSustain(next);
+      sustainBtn.classList.toggle('active', next);
+      sustainBtn.textContent = next ? '🎯 Sustain: ON' : '🎯 Sustain: OFF';
+    });
+
+    const resetBtn = document.getElementById('resetBtn');
+    resetBtn.addEventListener('click', () => {
+      AudioEngine.allNotesOff();
+      if (activeTouchNote) {
+        const keyData = keys.find((k) => k.note === activeTouchNote);
+        if (keyData) keyData.el.classList.remove('active');
+        activeTouchNote = null;
+      }
+    });
+
+    // Idle visualizer decay
+    setInterval(() => {
+      const bars = document.querySelectorAll('.viz-bar');
+      bars.forEach((bar) => {
+        const current = parseFloat(bar.style.height) || 18;
+        bar.style.height = `${Math.max(8, current * 0.82 + (Math.random() - 0.5) * 4)}px`;
+      });
+    }, 90);
+  </script>
+</body>
+</html>
